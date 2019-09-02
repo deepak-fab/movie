@@ -15,4 +15,5 @@ public interface ShowRepository extends JpaRepository<ShowDTL, Long>{
 
 	public List<ShowDTL> findByTheatreId(int theatreId);
 
+
 }
