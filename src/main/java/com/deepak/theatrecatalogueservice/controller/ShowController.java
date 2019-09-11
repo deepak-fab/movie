@@ -7,15 +7,17 @@ import java.util.Set;
 import java.util.stream.Collectors;
 
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
+import org.springframework.web.bind.annotation.PutMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseBody;
 import org.springframework.web.bind.annotation.RestController;
 
-import com.deepak.constants.ApplicationConstants;
+import com.deepak.theatrecatalogueservice.constants.ApplicationConstants;
 import com.deepak.theatrecatalogueservice.dto.BookingDetailsDTO;
 import com.deepak.theatrecatalogueservice.dto.SeatInfoDTO;
 import com.deepak.theatrecatalogueservice.dto.TheatreDTO;
@@ -25,16 +27,16 @@ import com.deepak.theatrecatalogueservice.entity.Theatre;
 import com.deepak.theatrecatalogueservice.repo.SeatRepository;
 import com.deepak.theatrecatalogueservice.repo.ShowRepository;
 import com.deepak.theatrecatalogueservice.repo.TheatreRepository;
+import com.deepak.theatrecatalogueservice.service.ShowService;
 
 
 @RestController
 public class ShowController {
 
-	@Autowired TheatreRepository theatreRepo;
-	@Autowired ShowRepository showRepo;
 
-    @Autowired
-    private SeatRepository seatRepo;
+	@Autowired
+	ShowService showService;
+
 
 	@GetMapping("/theatres")
 	public @ResponseBody List<Theatre> getTheatres(@RequestParam("cityId") int cityId, @RequestParam("movieId") int movieId) throws ParseException{
@@ -42,11 +44,7 @@ public class ShowController {
 		if(cityId==0 || movieId == 0) {
 			throw new ParseException(" Missing query parameters",0);
 		}
-		
-		List<Theatre> result = theatreRepo.findByCityIdAndMovieId(cityId, movieId);
-		
-		return result;
-		
+		return	showService.getTheatres(cityId,movieId);		
 	}
 	
 	@GetMapping("/theatres/{theatreId}/shows")
@@ -56,78 +54,48 @@ public class ShowController {
 			throw new ParseException(" Missing query parameters",0);
 		}
 		
-		List<ShowDTL> shows = showRepo.findByTheatreId(theatreId);
-		
-		return shows;
+		return	showService.getShows(theatreId);
 		
 	}
 
     @PostMapping("/bookseats")
     public BookingDetailsDTO bookSeats(@RequestBody SeatInfoDTO seatInfoDTO) 
     {
-        List<Seat> selectedSeats = seatRepo.findByShowIdAndSeatNameIn(seatInfoDTO.getShowId(), seatInfoDTO.getSelectedSeats());
-        if (selectedSeats.stream().anyMatch(seat -> seat.getStatus() != 0)) {
-            return null;
-        }
-        double totalCost = selectedSeats.stream().mapToDouble(seat -> seat.getPrice()).sum();
-        selectedSeats.stream().forEach(seat -> seat.setStatus(1));
-        selectedSeats.stream().forEach(seat -> seatRepo.save(seat));
-        BookingDetailsDTO bookingDetails = new BookingDetailsDTO(seatInfoDTO.getShowId(), "test user", totalCost, java.time.LocalDateTime.now(), selectedSeats.size());
-        return bookingDetails;
+    	
+    	return showService.bookSeats(seatInfoDTO);
     }
     
     @PostMapping("/addTheatre")
     public Theatre addTheatre(@RequestBody Theatre theatre) 
     {
-    	return theatreRepo.save(theatre);	
+    	   
+    	return showService.addTheatre(theatre);
+    	
     }    
     
     @PostMapping("/addShow")
     public ShowDTL addShowDTL(@RequestBody ShowDTL showDTL) 
     {
-    	return showRepo.save(showDTL);	
+    	 return showService.addShowDTL(showDTL);	
     }        
     
     @PostMapping("/addSeat")
-    public Seat addShowDTL(@RequestBody Seat seat) 
+    public Seat addSeat(@RequestBody Seat seat) 
     {
-    	return seatRepo.save(seat);	
+    	return showService.addSeat(seat);	
     }          
     
-    @PostMapping("/updateTheatre")
+    @PutMapping("/updateTheatre")
     public Theatre updateTheatre(@RequestBody Theatre theatre) 
     {  
-    	return theatreRepo.save(theatre);	
+    	return showService.updateTheatre(theatre);
+    	
     }        
  
-    @PostMapping("/deleteTheatre")
+    @DeleteMapping("/deleteTheatre")
     public String deleteTheatre(@RequestParam int theatreId) 
     {        
-    	    Theatre theatre = theatreRepo.findById(theatreId).orElse(null);
-    	    if(theatre==null) {
-    	    	return ApplicationConstants.NO_THEATRE;
-    	    }
-    	    
-    	    List<ShowDTL> showList =  showRepo.findByTheatreId(theatreId);
-    	    
-    	    if(showList.isEmpty()) {
-    	    	theatreRepo.deleteById(theatreId);
-    	    	return ApplicationConstants.SUCCESS;
-    	    }
-    	    
-    	    Set<Integer> showSet = new HashSet<>();
-    	    for (ShowDTL showDTL : showList) {
-				showSet.add(showDTL.getShowId());
-			}
-    	    
-    	  List<Seat> seatList =   seatRepo.findByShowIdIn(showSet);
-    	      
-    	  seatList = seatList.stream().filter(a ->  a.getStatus()==1).collect(Collectors.toList());
-    	  if(seatList.isEmpty()) {
-      	    theatreRepo.deleteById(theatreId);	
-      		return ApplicationConstants.SUCCESS;
-    	  }
-            return  ApplicationConstants.TICKET_BOOKED;
+    	    return showService.deleteTheatre(theatreId);
     }      
     
 }
